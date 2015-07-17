@@ -1,0 +1,43 @@
+public class Node{
+	//Node class represents a single node of a network
+	
+	public String name;
+		//string variable representing the name of the node
+	
+	public int degree;
+		//is the connectivity of the node, i.e. the number of edges
+		//connected to the node
+	
+	public Node() {
+		name = new String();
+		//Default constructor-creates a node with an empty name
+	}
+	
+	public Node(String name_argv) {
+		this.name = name_argv;
+		//Constructor with a string argument that creates a node 
+		//having the name given as an argument
+	}
+	
+	public String getName() {
+		return this.name;
+		//method that returns the name of the node
+	}
+	
+	@Override
+	public boolean equals(Object obj){
+		if (!(obj instanceof Node)) 	//if the object is not of type Node
+			return false;
+		Node node = (Node)obj;
+		if (node.name.equals(this.name)){  	//if the node name is equal to the name of this node
+			return true;				  	//true: the node will not be recorded 
+											//because it is already in the network
+		}
+		return false;						
+	}
+	
+	@Override
+	public int hashCode(){
+		return this.name.hashCode();
+	}
+}
