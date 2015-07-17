@@ -1,0 +1,237 @@
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.Set;
+import java.io.*;
+
+
+public class Network {
+	
+	//class representing the whole network
+	
+	Map<String, Node> nodes = new HashMap<String, Node>();
+	
+	Set<Edge> edges = new HashSet<Edge>();
+	
+	private int max_degree = 0; //keep the maximum degree variable here in this class
+	
+	public Network(){} //default constructor
+	
+	public Network(String fileName_argv){
+		this();
+		Scanner file;
+		try {
+			file = new Scanner (new File(fileName_argv));
+		}
+		catch (FileNotFoundException e) {
+			System.out.println(fileName_argv + " file does not exist ");
+			return;
+		}
+		while(file.hasNext()){                   //Test the end of line
+			
+			String line = file.nextLine();      //Read a line
+			Scanner parse = new Scanner(line);
+			parse.useDelimiter("\t");          //UniProt identifiers are separated by tabulation
+			
+			String protein_1 = parse.next();   //Read the first protein Uniprot identifier
+			String protein_2 = parse.next();    //Read the second protein Uniprot identfier
+			
+			this.addInteraction(protein_1, protein_2);
+			parse.close();
+		}
+		file.close();
+		System.out.println();
+		System.out.println("Total nodes added:" + " " + this.nodes.size());
+		System.out.println("Total edges added:" + " " + this.edges.size());
+	}
+	
+	
+	public void addInteraction(String protein_1, String protein_2){
+		
+		Node node_1 = this.nodes.get(protein_1); //attempt to retrieve node from our map
+		if (node_1 == null){                     //if no node was retrieved 
+			node_1 = new Node(protein_1);		//create a new node and add it to the map
+			this.nodes.put(protein_1, node_1);
+		}	
+		// do the same for the other protein
+		Node node_2 = this.nodes.get(protein_2);
+		if (node_2 == null){
+			node_2 = new Node(protein_2);
+			this.nodes.put(protein_2, node_2);
+		}
+		Edge edge = new Edge(node_1, node_2);   //create a new edge 
+												//attempt to add the edge in the hashset
+		boolean is_new_edge = this.edges.add(edge);
+		//this will add the edge and return true only if the 
+		//edge was not already in there, otherwise it will not add
+		//the edge and it will return false
+		
+		if (is_new_edge){
+			//if the edge has been been added, then this is a new edge 
+			//so increase the degree counter for the nodes
+			node_1.degree++;
+			if (node_1.degree > max_degree) {
+				max_degree = node_1.degree; //keep track of maximum degree
+			}
+			if (!node_1.equals(node_2)){
+				//ensure you do not double count a self-interaction
+				node_2.degree++;
+				if (node_2.degree > max_degree){
+					max_degree = node_2.degree;
+				}
+			}
+			System.out.println(protein_1 + " - " + protein_2 + ": Added");
+		}
+		else
+		{
+			System.out.println (protein_1 + " - " + protein_2 + ": Already in network");
+		}
+		
+	}
+					
+	public void averageDegree(){
+		double degree_sum = 0; 
+		for (Node node: this.nodes.values()) {
+			degree_sum += node.degree;
+		}
+		
+		double average_degree = degree_sum / (double) this.nodes.size();
+		System.out.println("Average degree: " + average_degree);
+	}
+		
+	public void getNetworkHubs(){
+		System.out.println ("Maximum degree of the network: " + this.max_degree);
+		System.out.println ("Network hubs:");
+		for(Node node: this.nodes.values()) {
+			if (node.degree == this.max_degree){
+				System.out.println(node.getName());
+			}
+		}
+	}
+	
+	public void getDegree(String node_name){
+		Node node = this.nodes.get(node_name);
+		if (node!=null){
+			int degree = node.degree;
+			System.out.println(node_name + ": Degree " + degree);
+		}
+		else{
+			System.out.println("Node " + node_name + " not in network");
+		}	
+	}
+	
+	public void printNetwork(){
+		for (Edge edge: this.edges){
+			edge.printM();
+		}
+		System.out.println();
+		System.out.println("Nodes: " + this.nodes.size());
+		System.out.println("Edges: " + this.edges.size());
+	}
+
+	public void degreeDistribution() throws IOException{
+		int [] counts = new int [this.max_degree];     // use this as a counter
+		for (Node node: this.nodes.values()) {
+			int position = node.degree - 1;            //minus 1 so that the degree 1 sits at index 0
+			counts [position]++;
+		}
+		System.out.println("Nodes: " + this.nodes.size());
+		System.out.println("Degree Distribution:");
+		for(int i=0; i<counts.length; i++){
+			System.out.println("Degree: " + (i+1) + " Number of nodes: " + counts[i]);
+		}
+		// ask the user to save the degree distribution
+		System.out.print("Do you wish to save the degree distribution of the network (y/n)? ");  
+		
+		BufferedReader co = new BufferedReader (new InputStreamReader(System.in));
+		String command = co.readLine();
+		if (command.equals ("y")){
+			System.out.print ("Enter filename to save the degree distribution: ");
+			String filename = co.readLine();
+			PrintWriter writer; 
+			try { 
+				writer = new PrintWriter (filename, "UTF-8");
+				writer.println("Degree\tNumber of nodes");
+				for (int i=0; i<counts.length; i++) {
+					writer.println((i+1) + "\t" + counts[i]);
+				}
+				writer.close();
+			}
+			catch (FileNotFoundException e) {
+				System.out.println("Cannot open file");
+			}
+			catch (UnsupportedEncodingException e) {
+				System.out.println("Cannot save to file");
+			}
+		}
+	}
+	
+	
+	public static void printHelpMessage(){
+		System.out.println("********************************************");
+		System.out.println("Enter one of the following commands:");
+		System.out.println("************************************");
+		System.out.println("empty   : Empty current network");
+		System.out.println("new     : Create a new network from file");
+		System.out.println("add     : Add interaction");
+		System.out.println("print   : Prints all interactions in network");
+		System.out.println("degree  : Get the degree of a node");
+		System.out.println("average : Get average degree of network");
+		System.out.println("hubs    : Get network hubs");
+		System.out.println("dist    : Print the degree distribution");
+		System.out.println("help	: Show this message");
+		System.out.println("exit	: Exit");
+		System.out.println("*********************************************");
+	}
+				
+	
+	//this is the main programme
+	public static void main(String[] args) throws Exception {
+		Network network = new Network (); //creates a new network of type Network 
+		BufferedReader co = new BufferedReader(new InputStreamReader(System.in));
+		printHelpMessage();
+		
+		while (true) {   //go through the while loop until "exit" is entered
+			System.out.println(" ");
+			System.out.print("Enter command: ");
+			String command = co.readLine();
+			switch(command){
+			case "empty": network = new Network();  //creates an empty network of class (type) Network
+						break;
+			case "new" : System.out.print("Enter filename containing a list of interactions: "); 
+						String filename = co.readLine();
+						network = new Network(filename);
+						break;
+			case "print": network.printNetwork();
+						break;
+			case "add": System.out.print ("Enter the  FIRST protein of interaction: ");
+						String protein_1 = co.readLine();
+						System.out.print("Enter the SECOND protein of interaction: ");
+						String protein_2 = co.readLine();
+						network.addInteraction(protein_1, protein_2);
+						break;
+			case "degree":  System.out.print("Enter node name: ");
+							String node_name = co.readLine();
+							network.getDegree(node_name);
+							break;
+			case "average": network.averageDegree();
+							break;
+			case "hubs":    network.getNetworkHubs();
+							break;
+			case "dist":    network.degreeDistribution();
+							break;				
+			case "exit" : 	System.exit(0);
+			
+			case "help" :   printHelpMessage();
+							break;
+			default: System.out.println("Invalid command");  //to error proof for invalid commands entered 
+					printHelpMessage();
+					break;				
+		}
+			
+	}
+		
+}
+	
+}
